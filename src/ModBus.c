@@ -15,7 +15,10 @@
 
 //FECHA 10/04/11
 //Se agrega la funcion 0x06, escritura de un solo registro
-
+//FECHA 20/08/18
+//Se modifica programa para detectar cambio de pagina ne memoria de datos
+//si el dato que se pide esta en el aria desde 0x77 hasta 0x0a, se envia
+//a la pagina siguiente que comienza en 0x0a
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -92,16 +95,19 @@ comando = rxBuff[ModBusCmd];  //recupero comando
 offset = make16(rxBuff[ModbusIni],rxbuff[ModBusIni+1]);    //recupero direccion del registro como offset del inicio de la memoria
 cant = make16(rxBuff[ModbusCant],rxbuff[ModBusCant+1]);    //recupero cantidad de registros para comando 0x03
 DirIni = &rCmd + offset;
+if (DirIni > 0x76 & DirIni < 0xA0) 
+   DirIni = 0xA0 + (DirIni-0x77);
 switch (comando){
          case 0x03:     //leer registros
             //armo respuesta modubs para comando 0x03
             txbuff[ModbusAdd]=ModbusAddress;                //Direccion esclavo; 
             txbuff[ModbusCmd]=comando;             //Comando
             //busco los datos que esta en memoria
-            for (i=1;i<=cant;i++){      
+            for (i=1;i<=cant;i++){
                   txbuff[i*2+1]=*(DirIni+1);
                   txbuff[i*2+2]=*(DirIni);
                   DirIni+=2;
+                  if (DirIni > 0x76 & DirIni < 0xa0) DirIni = 0xa0;
             }
             txlen=cant*2;
             txbuff[ModbusBCount]=txlen;            //Cantidad de Bytes
@@ -130,6 +136,7 @@ switch (comando){
                   *(DirIni+1) =rxbuff[i*2+5];
                   *(DirIni)   =rxbuff[i*2+6];
                   DirIni+=2;
+                  if (DirIni > 0x76 & DirIni < 0xa0) DirIni = 0xa0;
             }
             //Armo respuesta
             Modbus_RespOK(ModbusAddress, comando);
