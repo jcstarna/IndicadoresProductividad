@@ -1,16 +1,16 @@
 ///////////////////////////////////////////////////////////////////////////////
 //                    PROYECTO INDICADORES PRODUCTIVIDAD
 //
-//                VERSION 4
+//                VERSION 5
 ///////////////////////////////////////////////////////////////////////////////
 /*
 08/08/18 modificacion cantidad de pulsadores que incrementan produccion
          se agregan registros de tiempo de prenda para cada pulsador
 */
 
-#include <16f886.h>                          // Definiciones del PIC 16F873
+#include <16F886.h>                          // Definiciones del PIC 16F873
 #RESERVE  0x07b:0X07F
-#fuses HS,NOWDT,NOPROTECT,NOLVP,NOBROWNOUT,NOMCLR,NODEBUG,NOPUT,BROWNOUT
+#fuses HS,NOWDT,PROTECT,MCLR,NODEBUG,PUT,BROWNOUT,NOLVP,BORV21
 #use delay(clock=20000000)                     // Oscilador a 20 Mhz
 #priority RTCC,RDA,TBE
 
@@ -21,6 +21,8 @@
 #use I2C(master, sda=PIN_C4, scl=PIN_C3, force_hw, fast=100000)
 
 //PINES DEL SHIFT REGISTER
+#define pLedTX    pin_B0
+#define pLedRX    pin_B1
 #define pMR_SR    pin_B2  //MASTER RESET DEL SHIFT REGISTER
 #define pDCLK_SR  pin_B3  //DATA CLOCK DEL SHIFT REGISTER   
 #define pSCLK_SR  pin_B4  //STORAGE CLOCK DEL SHIFT REG
@@ -31,14 +33,14 @@
 #define pBUZZ  pin_B7     //BUZZER 
 #define pREL1  pin_C0
 #define pREL2  pin_C1
-#define pRES   pin_C2     //libre
+#define pIN1   pin_C2     //libre
 
-int const kInmuni=10;
+int const kInmuni=5;
 int const k1seg=99;//2
 int const k100ms=10;
-int const kFiltro=15;
+int const kFiltro=5;
 int const kP2=15;
-int const FwVer=4;
+int const FwVer=5;
 
 // VARIABLES EN RAM ///////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
@@ -95,7 +97,7 @@ int16 rAuxTiempo1=0;     //40043
 int16 rAuxTiempo2=0;     //40044 
 int16 rAuxTiempo3=0;     //40045 
 int16 rAuxTiempo4=0;     //40046 
-int16 fEnPul=0x000F;     //40047
+int16 fEnPul=0x003F;     //40047
 
 
 //1ra linea de digitos
@@ -118,7 +120,11 @@ int8  rMilL4=0;
 int8  rCenL4=0;
 int8  rDecL4=0;
 int8  rUniL4=0;
-int8  rLeds=0;
+//5da linea de digitos (hora)
+int8  rMilL5=0;
+int8  rCenL5=0;
+int8  rDecL5=0;
+int8  rUniL5=0;
 
 
 //variables para mostrar cuando finaliza el turn
@@ -137,7 +143,6 @@ int8  rCent=0;
 int8  rDec=0;
 int8  rUni=0;
 
-//leds pirania
 
 int8 dec_bcd[11]={0xC0,0xF9,0xA4,0xB0,0x99,0x92,0x82,0xF8,0x80,0x98,0xFF};//0x99 en 4
 
@@ -152,17 +157,25 @@ int1  fIn1=0;
 int1  fIn2=0;
 int1  fIn3=0;
 int1  fIn4=0;
+int1  fIn5=0;
+int1  fIn6=0;
 int1  fTecOk=0;      //flag que la tecla ok se mantuvo apretada
 int1  fTec1=0;
 int1  fTec2=0;
 int1  fTec3=0;
 int1  fTec4=0;
-int1  fGuardarEEPROM=0;
+int1  fTec5=0;
+int1  fTec6=0;
+
+//int1  fGuardarEEPROM=0;
 int8  rInmunidad=0;
 int8  rInmuniT1=0;
 int8  rInmuniT2=0;
 int8  rInmuniT3=0;
 int8  rInmuniT4=0;
+int8  rInmuniT5=0;
+int8  rInmuniT6=0;
+
 
 //variables de turno
 /*
@@ -196,6 +209,8 @@ int8  rFiltro1=kFiltro;  //tiempo en segundos entre fin de prenda y fin de prend
 int8  rFiltro2=kFiltro;  //tiempo en segundos entre fin de prenda y fin de prenda
 int8  rFiltro3=kFiltro;  //tiempo en segundos entre fin de prenda y fin de prenda
 int8  rFiltro4=kFiltro;  //tiempo en segundos entre fin de prenda y fin de prenda
+int8  rFiltro5=kFiltro;  //tiempo en segundos entre fin de prenda y fin de prenda
+int8  rFiltro6=kFiltro;  //tiempo en segundos entre fin de prenda y fin de prenda
 
 int1 p1seg=0;
 int1 fFinHora=0;
@@ -205,7 +220,7 @@ int1 fTestTurno=0;
 int1 f1Min=0;        //flag cada un minuto
 int1 f100ms=0;
 int1 fTimbre=0;      //hace sonar el timbre puesto en el rele 1
-int1 fHora=0;        //flag cada una hora
+//int1 fHora=0;        //flag cada una hora
 int1 fRecreo= 0;     //esta en recreo
 int1 fAuxRecreo=0;
 int1 fAlarma=0;
@@ -219,6 +234,8 @@ int1 fFiltro1=0;      //filtro para evitar que pulsen seguido el fin de prenda
 int1 fFiltro2=0;      //filtro para evitar que pulsen seguido el fin de prenda
 int1 fFiltro3=0;      //filtro para evitar que pulsen seguido el fin de prenda
 int1 fFiltro4=0;      //filtro para evitar que pulsen seguido el fin de prenda
+int1 fFiltro5=0;      //filtro para evitar que pulsen seguido el fin de prenda
+int1 fFiltro6=0;      //filtro para evitar que pulsen seguido el fin de prenda
 
 // librerias modbus
 #include "modbus.h"
@@ -243,11 +260,47 @@ void TestCambioOBJ (void);
 void TestLeds(voiD);
 
 //++++++++++++++++++ ESCANEO DE ENTRADAS ++++++++++++++++++++++++++++++
+/*
+   A0 = IN6
+   A1 = IN5
+   A2 = IN4
+   A3 = IN3
+   A4 = IN1
+   A5 = IN2
+*/
 void  ScanInputs(){
    int rTempTec;                          //Temporal teclado
    rTempTec=input_A();
-   rTempTec=rTempTec & 0b00001111;
-   if (!bit_test(rTempTec,0)){
+   
+   if(input(pIn1))
+      bit_set(rTempTec,4);
+   else
+      bit_clear(rTempTec,4);
+      
+   rTempTec=rTempTec & 0b00111111;
+   if (!bit_test(rTempTec,0)){   //IN6
+      if(--rInmuniT6==0 && !fTec6){
+         rInmuniT6=kInmuni;;
+         fIn6=1;
+         fTec6=1;
+      }
+   }
+   else{
+      rInmuniT6=kInmuni;
+      fTec6=0;
+   }
+   if (!bit_test(rTempTec,1)){   //IN5
+      if(--rInmuniT5==0 && !fTec5){
+         rInmuniT5=kInmuni;;
+         fIn5=1;
+         fTec5=1;
+      }
+   }
+   else{
+      rInmuniT5=kInmuni;
+      fTec5=0;
+   }
+   if (!bit_test(rTempTec,2)){   //IN4
       if(--rInmuniT4==0 && !fTec4){
          rInmuniT4=kInmuni;;
          fIn4=1;
@@ -257,8 +310,8 @@ void  ScanInputs(){
    else{
       rInmuniT4=kInmuni;
       fTec4=0;
-   }
-   if (!bit_test(rTempTec,1)){
+   }   
+   if (!bit_test(rTempTec,3)){   //IN3
       if(--rInmuniT3==0 && !fTec3){
          rInmuniT3=kInmuni;;
          fIn3=1;
@@ -268,19 +321,8 @@ void  ScanInputs(){
    else{
       rInmuniT3=kInmuni;
       fTec3=0;
-   }
-   if (!bit_test(rTempTec,2)){
-      if(--rInmuniT2==0 && !fTec2){
-         rInmuniT2=kInmuni;;
-         fIn2=1;
-         fTec2=1;
-      }
-   }
-   else{
-      rInmuniT2=kInmuni;
-      fTec2=0;
-   }   
-   if (!bit_test(rTempTec,3)){
+   }  
+   if (!bit_test(rTempTec,4)){   //IN1
       if(--rInmuniT1==0 && !fTec1){
          rInmuniT1=kInmuni;;
          fIn1=1;
@@ -290,41 +332,72 @@ void  ScanInputs(){
    else{
       rInmuniT1=kInmuni;
       fTec1=0;
-   }   
+   } 
+   if (!bit_test(rTempTec,5)){   //IN2
+      if(--rInmuniT2==0 && !fTec2){
+         rInmuniT2=kInmuni;;
+         fIn2=1;
+         fTec2=1;
+      }
+   }
+   else{
+      rInmuniT2=kInmuni;
+      fTec2=0;
+   }    
 }
 //++++++++++++++++++ ESCANEO DE ENTRADAS ++++++++++++++++++++++++++++++
+/*
+   A0 = IN6 = 62
+   A1 = IN5 = 61
+   A2 = IN4 = 59
+   A3 = IN3 = 55
+   A4 = IN1 = 47
+   A5 = IN2 = 31
+*/
 void  ScanTeclado(){
 //revision para placa nueva con teclado separado de placa principal
 //
-
    int rTempTec;                          //Temporal teclado
 //   set_tris_b (0b11111000);               //configuro entradas para teclas.
    rTempTec=input_A();
-   rTempTec=rTempTec & 0b00001111;
-      if (rTempTec!=15 ) //si=0 ninguna tecla apretada... me voy
+   if(input(pIn1))
+      bit_set(rTempTec,4);
+   else
+      bit_clear(rTempTec,4);
+      
+   rTempTec=rTempTec & 0b00111111; //filtro
+      if (rTempTec!=63 ) //si=0 ninguna tecla apretada... me voy
          {
          rInmunidad--;
             if(rInmunidad==0 && fTeclaOK==0){
                rInmunidad=kInmuni;
                switch (rTempTec){
-                           case 14:fIn4=1;       //14
+                           case 62:fIn6=1;       //14
                                    fTeclaOK=1;
                                    break;
-                           case 13:fIn3=1;
+                           case 61:fIn5=1;
                                    fTeclaOK=1;
                                    break;
-                           case 11:fIn2=1;
+                           case 59:fIn4=1;
                                    fTeclaOK=1;
                                    break;
-                           case 7: fIn1=1;
+                           case 55:fIn3=1;
                                    fTeclaOK=1;
                                    break;
+                           case 47:fIn1=1;
+                                   fTeclaOK=1;
+                                   break;
+                           case 31:fIn2=1;
+                                   fTeclaOK=1;
+                                   break;                                   
                            default:fTeclaOK=0;
                                    rInmunidad=kInmuni;
                                    fIn1=0;
                                    fIn2=0;
                                    fIn3=0;
                                    fIn4=0;
+                                   fIn5=0;
+                                   fIn6=0;
                                    fTecOk=0;
                                    break;
                                  }
@@ -350,6 +423,7 @@ rcvchar=0x00;                        // Inicializo caracter recibido
       ModBusRX(rcvchar);                // lo añado al buffer y ...
    }
    setup_timer_2 (T2_DIV_BY_16, 250, 16); //setup_timer_2 (T2_DIV_BY_4, 250, 16);
+   output_low(pLedRX);
 }
 
 //++++++++++++++++++++++++++++++++++++++
@@ -396,6 +470,18 @@ if (--rT1s==0){
          fFiltro4=0;
       }
    }
+   if(fFiltro5){
+      if(--rFiltro5==0){
+         rFiltro5=kFiltro;
+         fFiltro5=0;
+      }
+   }
+   if(fFiltro6){
+      if(--rFiltro6==0){
+         rFiltro6=kFiltro;
+         fFiltro6=0;
+      }
+   }   
 }
 if (--rT100ms==0 & !fRecreo){
    rAuxTiempo++;                    //incremento tiempo de prenda actual
@@ -406,7 +492,6 @@ if (--rT100ms==0 & !fRecreo){
    rT100ms=k100ms;
    f100ms=1;
 }
-
 }
 
 
@@ -417,7 +502,8 @@ if (--rT100ms==0 & !fRecreo){
 void timer2_isr(){
 int16 CRC=0;
 int16 CRC_Leido=0;
-   IF(fParami){                        //Calculo checksum de dato recibido
+output_high(pLedRX);
+   if(fParami){                        //Calculo checksum de dato recibido
          CRC=CRC_Calc(rxbuff,rxpuntero-3); //
          CRC_Leido= make16(rxBuff[rxpuntero-2],rxBuff[rxpuntero-1]);
          if(CRC_Leido==CRC)flagcommand=1;
@@ -459,12 +545,12 @@ void main() {
    set_tris_a (0b11111111);
    output_a(0);
    output_b(0);
-   set_tris_b (0b00000001);
+   set_tris_b (0b00000000);
    output_c(0);
-   set_tris_c (0b11011000);
+   set_tris_c (0b11011100);
    
    //********************************************
-   ModbusAddress=6;//direccion modbus del cartel
+   ModbusAddress=104;//direccion modbus del cartel
    //********************************************
    
    rT1s=k1seg;
@@ -482,7 +568,7 @@ void main() {
    output_high(pOE_SR);
    output_low(pMR_SR);
    
-   output_high(pBUZZ);
+   //output_high(pBUZZ);
    ds1307_init();
    delay_ms(30);
    output_high(pMR_SR);
@@ -490,14 +576,16 @@ void main() {
    //inc_dig();
    //envia_disp();
    output_low(pBUZZ);
-
-                   // Habilita interrupciones
+   output_high(pLedRX);
+   output_high(pLedTX);
+                   
    output_low(pOE_SR);
    rpantalla=0;
    enable_interrupts(global);  
    testleds();
    fFinGrabar=0;
-  
+   
+   
    ////////////////////////////////////////////////////
    /////////         BUCLE PRINCIPAL         //////////
    ////////////////////////////////////////////////////
@@ -508,15 +596,18 @@ void main() {
    rSetDate=rMinIniRecDec;
    
       //si se corto la energia
-      if(!input(pin_a4) & !fFinGrabar){
+      if(!input(pin_a4) && !fFinGrabar){//& !fFinGrabar
+         //output_high(pMR_SR);
          graba_EEPROM();
+         output_high(pbuzz);
          fFinGrabar=1;
       }
-      
+
+      //se elimina tener que estar en recreo para contar prenda
       //pulsador fin prenda 1
       IF (fIN1 && bit_test(fEnPul,0)){
          fIN1=0;                 //reset flag
-         if (!fRecreo & (rTurnoAct !=0) & !fFiltro1){
+         if ( (rTurnoAct !=0) & !fFiltro1){ //!fRecreo &
                rProdHs++;              //incremento cantidad producida
                //rProdAcu++;             //incremento acumulado diario
                rProdTurno++;           //incremento acumulado turno
@@ -533,7 +624,7 @@ void main() {
       //pulsador fin prenda 2
       IF (fIN2 && bit_test(fEnPul,1)){
          fIN2=0;                 //reset flag
-         if (!fRecreo & (rTurnoAct !=0) & !fFiltro2){
+         if ((rTurnoAct !=0) & !fFiltro2){ //!fRecreo & 
                rProdHs++;              //incremento cantidad producida
                //rProdAcu++;             //incremento acumulado diario
                rProdTurno++;           //incremento acumulado turno
@@ -548,9 +639,9 @@ void main() {
       } 
       
       //pulsador fin prenda 3
-      IF (fIN3 &&bit_test(fEnPul,2)){
+      IF (fIN3 && bit_test(fEnPul,2)){
          fIN3=0;                 //reset flag
-         if (!fRecreo & (rTurnoAct !=0) & !fFiltro3){
+         if ((rTurnoAct !=0) & !fFiltro3){ //!fRecreo &
                rProdHs++;              //incremento cantidad producida
                //rProdAcu++;             //incremento acumulado diario
                rProdTurno++;           //incremento acumulado turno
@@ -567,7 +658,7 @@ void main() {
       //pulsador fin prenda 4
       IF (fIN4 && bit_test(fEnPul,3)){
          fIN4=0;                 //reset flag
-         if (!fRecreo & (rTurnoAct !=0) & !fFiltro4){
+         if ((rTurnoAct !=0) & !fFiltro4){//!fRecreo &1500
                rProdHs++;              //incremento cantidad producida
                //rProdAcu++;             //incremento acumulado diario
                rProdTurno++;           //incremento acumulado turno
@@ -752,7 +843,8 @@ void main() {
       
    
       //comando enviado desde PC
-      if (rCMD!=0){
+      if (rCMD!=0)
+      {
          switch (rCMD){
                   case 1: //ajustar hora
                         ds1307_Write_time(0x00, (int8)(rSetTime & 0x00ff), (int8)(rSetTime >>8));
@@ -764,7 +856,8 @@ void main() {
       } 
       
       //si hay que accionar el timbre
-      if (fTimbre){
+      if (fTimbre)
+      {
          fAlarma=1;
          fTimbre=0;
          rTemp=rSegundos;
@@ -773,14 +866,15 @@ void main() {
             rTemp=rTemp-60;
       }
       //mostrar pantalla resumenes cada hora
-      if (fPantalla){
+      if (fPantalla)
+      {
          rPantalla=1;
          fPantalla=0;
          fPantTemp=1;
          rTempPant = rSegundos + 10;
          if (rTempPant > 60)
             rtemppant= rtemppant-60;
-         }
+      }
       
       //cambiar pantalla por 10 segundos
       if (fPantTemp){
@@ -802,13 +896,13 @@ void main() {
 
 
 //envio todos los datos al display
-//17 bytes
+//20 bytes
 void envia_disp(void){
 int8 i=0;      //offset del puntero a enviar
 int8 rbit=0;   //contador de bits
 int8 Data=0;   //dato a enviar
 //cargo el puntero con byte a enviar
-for (i=0;i<=16;i++){//16
+for (i=0;i<=19;i++){//16
 Data=*(&rMilL1+i);   //cargo el primer digito a enviar en DATA
 //envio bit a bit el dato
    for (rbit=0;rbit<=7;rbit++){
@@ -847,21 +941,22 @@ switch (rPantalla){
             rCenL2=dec_bcd[rCent];
             rMilL2=dec_bcd[rUMil];
             //3da linea de digitos
-            Dec_A_UDCU(rProdHora);//porcentaje producido
+            Dec_A_UDCU(rProdAcu);//Productividad acumulada
             rUniL3=dec_bcd[rUni];
             rDecL3=dec_bcd[rDec];
             rCenL3=dec_bcd[rCent];
             rMilL3=dec_bcd[rUMil];
             //bit_clear(rUniL3,7);
-            rLeds=255;
-            if (!fFiltro1) bit_set(rLeds,6); //7
-            else bit_clear(rLeds,6);
-            if (!fFiltro2) bit_set(rLeds,7); //6
-            else bit_clear(rLeds,7);
-            if (!fFiltro4) bit_set(rLeds,4); //5
-            else bit_clear(rLeds,4);
-            if (!fFiltro3) bit_set(rLeds,5); //4
-            else bit_clear(rLeds,5);
+            //cuarta linea de digitos (primera display compactos)            
+            Dec_A_UDCU(rProdHora);//porcentaje producido
+            rUniL4=dec_bcd[rUni];
+            rDecL4=dec_bcd[rDec];
+            rCenL4=dec_bcd[rCent];
+            rMilL4=dec_bcd[rUMil];
+            //bit_clear(rUniL3,7);
+            //cuarta linea de digitos (primera display compactos)
+            
+
             break;
       case 1: //datos diarios
             Dec_A_UDCU(rProdTurno);//rObjDia);//objetivo diario
@@ -882,7 +977,6 @@ switch (rPantalla){
             rCenL3=dec_bcd[rCent];
             rMilL3=dec_bcd[rUMil];
             //bit_clear(rUniL3,7);
-            rLeds=254;
             break;
       case 2: //datos diarios
             Dec_A_UDCU(rTempProdTurno);//temporal objetivo diario
@@ -903,22 +997,21 @@ switch (rPantalla){
             rCenL3=dec_bcd[rCent];
             rMilL3=dec_bcd[rUMil];
             //bit_clear(rUniL3,7);
-            rLeds=252;
             break;
       default:break;
 }//fin switch
 //4da linea de digitos (hora)
-rUniL4=dec_bcd[rUni_Min];
-rDecL4=dec_bcd[rDec_Min];
-rCenL4=dec_bcd[rUni_HS];
-rMilL4=dec_bcd[rDec_HS];
+rUniL5=dec_bcd[rUni_Min];
+rDecL5=dec_bcd[rDec_Min];
+rCenL5=dec_bcd[rUni_HS];
+rMilL5=dec_bcd[rDec_HS];
 //leds pirania
 //rLeds=dec_bcd[0];
 rtemp=10;
 if (bit_test(rUni_SEc,0))
-   bit_set(rDecL4,7);
+   bit_set(rDecL5,7);
 else
-   bit_clear(rDecL4,7); //rCentL4
+   bit_clear(rDecL5,7); //rCentL4
 }
 
 VOID ds1307_init(void){
@@ -1201,6 +1294,7 @@ for (EE_Add=0;EE_Add <=64;EE_Add ++){
 
 }//end for
 WRITE_EEPROM(66,fEnPul);
+//output_high(pBuzz);
 }
 
 void lee_EEPROM(void){
@@ -1256,8 +1350,8 @@ float N2 =0;
 void TestLeds(voiD){
 int8 i=0;
 do{
-   if(p1seg){
-      p1seg=0;
+   if(f100ms){
+      f100ms=0;
             rUniL1=dec_bcd[i];
             rDecL1=dec_bcd[i];
             rCenL1=dec_bcd[i];
@@ -1274,15 +1368,19 @@ do{
             rDecL4=rUniL1;
             rCenL4=rUniL1;
             rMilL4=rUniL1;
-            rLeds=0;
+            rUniL5=rUniL1;
+            rDecL5=rUniL1;
+            rCenL5=rUniL1;
+            rMilL5=rUniL1;            
       i++;
       envia_disp();
    }
 }while (i<11);
-   rLeds=255;
    rDecL1=0xe3; //"v"
    rUniL1=dec_bcd[FwVer];
-   rUniL3=dec_bcd[ModbusAddress];
+   Dec_A_UDCU ((int16)ModbusAddress);
+   rUniL3=dec_bcd[rUni];
+   rDecL3=dec_bcd[rDec];
    envia_disp();
    delay_ms(2000);
 }

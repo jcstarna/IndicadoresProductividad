@@ -69,12 +69,14 @@ void ModBusRX (char data){
 */
 void ModBusTX (){
    if(txlen-->0){
+      output_Low(pLedTX);
       putc(txbuff[txpoint]);
       txpoint++;
    }
    else{
       disable_interrupts(int_tbe); 
       inicbuffTX();
+      output_high(pLedTX);
    }
 }
 

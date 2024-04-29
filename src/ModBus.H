@@ -12,7 +12,7 @@ int const   ModbusCmd=1;               //posicion del comando en la trama modbus
 int const   ModbusIni=2;               //posicion del primer registro solicitado en trama modbus 2 bytes
 int const   ModbusCant=4;              //posicion de la cantidad de registros en la trama modbus 2 bytes
 int const   ModbusBCount=2;            //posicion de la cantidad de bytes en la respuesta modbus
-int const   lenbuff=40;
+int const   lenbuff=38;
 
 char  Txbuff[lenbuff];                   // Buffer
 char  Rxbuff[lenbuff];                   // Buffer
@@ -25,7 +25,7 @@ int8  ModbusAddress=0;                 //direccion del esclavo
 
 int1  flagcommand=0;                    // Flag para indicar comando disponible
 int1  fParami =0;                       // Indica que el comando es par este esclavo
-int1  fFinTrama=0;                      // Paso el tiempo de espera para considerar que termino la trama 3 bit time para RTU 
+//int1  fFinTrama=0;                      // Paso el tiempo de espera para considerar que termino la trama 3 bit time para RTU 
 
 
 
