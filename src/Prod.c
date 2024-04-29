@@ -1,12 +1,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 //                    PROYECTO INDICADORES PRODUCTIVIDAD
-// VERSION PARA BAYSUR CON % CON UN DECIMAL
 //
+//                VERSION PARA COOPERATIVA, SIN DECIMAL EN %
 ///////////////////////////////////////////////////////////////////////////////
 
 
 #include <16f886.h>                          // Definiciones del PIC 16F873
-#RESERVE   0x07B:0X07F
+#RESERVE  0x07B:0X07F
 #fuses HS,NOWDT,NOPROTECT,NOLVP,NOBROWNOUT,NOMCLR,NODEBUG,NOPUT,BROWNOUT
 #use delay(clock=20000000)                     // Oscilador a 20 Mhz
 #priority RTCC,RDA,TBE
@@ -358,7 +358,7 @@ void main() {
    set_tris_c (0b11011000);
    
    //********************************************
-   ModbusAddress=11;//direccion modbus del cartel
+   ModbusAddress=15;//direccion modbus del cartel
    //********************************************
    
    rT1s=k1seg;
@@ -1040,12 +1040,12 @@ float rCalc=0;
          N1=(float)rProdHs;
          N2=(float)rTempObjHs;
          if (N2 > 0) rCalc = N1/N2;
-         rProdHora = (int16)(rCalc*1000); 
+         rProdHora = (int16)(rCalc*100); //SACO EL DECIMAL
          //productividad turno
          N1=(float)rProdTurno;
          N2=(float)rObjAcu;
          rCalc = N1/N2;         
-         rProdAcu=(int16)(rCalc*1000);//productuvidad acumulada
+         rProdAcu=(int16)(rCalc*100);//productuvidad acumulada  SE SACA EL DECIMAL, ANTES MULTIPLICADO POR 1000
 }
 
 void TestCambioOBJ (void){
