@@ -97,7 +97,7 @@ comando = rxBuff[ModBusCmd];  //recupero comando
 offset = make16(rxBuff[ModbusIni],rxbuff[ModBusIni+1]);    //recupero direccion del registro como offset del inicio de la memoria
 cant = make16(rxBuff[ModbusCant],rxbuff[ModBusCant+1]);    //recupero cantidad de registros para comando 0x03
 DirIni = &rCmd + offset;
-if (DirIni > 0x76 & DirIni < 0xA0) 
+if ((DirIni > 0x76) && (DirIni < 0xA0)) 
    DirIni = 0xA0 + (DirIni-0x77);
 switch (comando){
          case 0x03:     //leer registros
