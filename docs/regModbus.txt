@@ -1,0 +1,46 @@
+/////////////////////////////////////////////////////
+// REGISTROS MODBUS
+/////////////////////////////////////////////////////
+int16 rCmd=0;           //40001 comando
+int16 rSetTime=0;       //40002 hora, minuto y segundo a setear en el DS en BCD
+int16 rSetDate=0;       //40003 Dia de la semana/fecha/mes/anio a setear en el DS en BCD
+int16 rTime=0;          //40004 hora, minuto y segundo actual BCD
+INT16 rMinutosDec=0;    //minutos en formato decimal
+//int16 rDate=0;        //40005 Dia de la semana/fecha/mes/anio BCD
+//
+int16 rProdHs=1;        //40006 producido horario, se resetea hora a hora
+int16 rProdHrAnt=2;     //40007 cantidad producida en la hora anterior
+int16 rProdHora=3;      //40008 productividad horaria
+int16 rObjHs=4;         //40009 objetivo horario
+//
+int16 rProdAcu=5;       //40010 Productividad acumulada
+int16 rProdTurno=6;     //40011 Produccion acumulada del turno
+int16 rProdTurnoAnt=7;  //40012 producido turno anterior
+int16 rTempObjHs=8;     //40013 temporario de produccion horaria para cuando se cambia el objetivo de la horaen el medio de una hora
+int16 rUltTiempo=9;     //40014 demora ultima prenda (tiempo entre pulsado y pulsado de puls fin
+int16 rDatoListo=10;    //40015 //le indica al scada que recolecte el dato
+int16 rAuxTiempo=11;     //40016 tiempo de prenda actual
+//turnos
+int16 rIniT1=12;         //40017 inicio turno uno byte superior, hora, byte inferior, minutos
+int16 rFinT1=13;         //40018 fin turno idem formato
+int16 rIniT2=14;         //40019
+int16 rFinT2=15;         //40020
+int16 rIniT3=16;         //40021
+int16 rFinT3=17;         //40022
+int16 rIniT4=18;         //40023
+int16 rFinT4=19;         //40024
+int16 rTurnoAct=20;      //40025
+int16 rTurnoAnt=21;      //40026
+int16 rObjDia=22;        //40027
+int16 rPantalla=23;      //40028 pantalla a mostrar, datos hr, datos turno, etc 
+int16 rIniRecT1=24;      //40029 recreo en el turno 1
+int16 rFinRecT1=25;      //40030 recreo en el turno 1
+int16 rIniRecT2=26;      //40031 recreo en el truno 2
+int16 rFinRecT2=27;      //40032 recreo en el turno 2
+int16 rIniRecT3=28;      //40033 recreo en el turno 3
+int16 rFinRecT3=29;      //40034 recreo en el turno 3
+int16 rIniRecT4=30;      //40035 recreo en el truno 4
+int16 rFinRecT4=31;      //40036 recreo en el turno 4
+int16 rObjAcu=0;         //40037 objetivos acumulados durante el turno
+int16 rObjHsAnt=4;       //para detectar cambio de objetivo horario
+int16 rContMin=0;        //contador de minutos para set de flag cada una hora
